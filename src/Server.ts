@@ -1,5 +1,5 @@
 import "missing-native-js-functions";
-import fs from "fs/promises";
+import fs from "fs";
 import { Connection } from "mongoose";
 import { Server, ServerOptions } from "lambert-server";
 import { Authentication, CORS } from "./middlewares/";
@@ -64,14 +64,14 @@ export class FosscordServer extends Server {
 		// @ts-ignore
 		await (db as Promise<Connection>);
 		await this.setupSchema();
-		console.log("[DB] connected");
+		console.log("[Database] connected");
 		await Config.init();
 
 		this.app.use(CORS);
 		this.app.use(Authentication);
 		this.app.use(BodyParser({ inflate: true, limit: 1024 * 1024 * 2 }));
-		const languages = await fs.readdir(path.join(__dirname, "..", "locales"));
-		const namespaces = await fs.readdir(path.join(__dirname, "..", "locales", "en"));
+		const languages = fs.readdirSync(path.join(__dirname, "..", "locales"));
+		const namespaces = fs.readdirSync(path.join(__dirname, "..", "locales", "en"));
 		const ns = namespaces.filter((x) => x.endsWith(".json")).map((x) => x.slice(0, x.length - 5));
 
 		await i18next
@@ -100,12 +100,20 @@ export class FosscordServer extends Server {
 		prefix.use("/channels/:id", RateLimit({ count: 5, window: 5 }));
 
 		this.routes = await this.registerRoutes(path.join(__dirname, "routes", "/"));
-		app.use("/api", prefix); // allow unversioned requests
 		app.use("/api/v8", prefix);
 		app.use("/api/v9", prefix);
+		app.use("/api", prefix); // allow unversioned requests
+
+		prefix.get("*", (req: Request, res: Response) => {
+			res.status(404).json({
+				message: "404: Not Found",
+				code: 0
+			});
+		});
+
 		this.app = app;
 		this.app.use(ErrorHandler);
-		const indexHTML = await fs.readFile(path.join(__dirname, "..", "client_test", "index.html"), { encoding: "utf8" });
+		const indexHTML = fs.readFileSync(path.join(__dirname, "..", "client_test", "index.html"), { encoding: "utf8" });
 
 		this.app.use("/assets", express.static(path.join(__dirname, "..", "assets")));
 

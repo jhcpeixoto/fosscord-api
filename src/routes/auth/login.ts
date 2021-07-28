@@ -9,12 +9,13 @@ import RateLimit from "../../middlewares/RateLimit";
 const router: Router = Router();
 export default router;
 
+// TODO: check if user is deleted/restricted
 router.post(
 	"/",
 	RateLimit({ count: 5, window: 60, onylIp: true }),
 	check({
 		login: new Length(String, 2, 100), // email or telephone
-		password: new Length(String, 8, 64),
+		password: new Length(String, 8, 72),
 		$undelete: Boolean,
 		$captcha_key: String,
 		$login_source: String,
@@ -43,14 +44,26 @@ router.post(
 			// TODO: check captcha
 		}
 
-		const user = await UserModel.findOne({ $or: query }, `user_data.hash id user_settings.locale user_settings.theme`).exec();
-
-		if (!user) {
-			throw FieldErrors({ login: { message: req.t("auth:login.INVALID_LOGIN"), code: "INVALID_LOGIN" } });
-		}
+		const user = await UserModel.findOne(
+			{ $or: query },
+			{
+				user_data: {
+					hash: true
+				},
+				id: true,
+				user_settings: {
+					locale: true,
+					theme: true
+				}
+			}
+		)
+			.exec()
+			.catch((e) => {
+				throw FieldErrors({ login: { message: req.t("auth:login.INVALID_LOGIN"), code: "INVALID_LOGIN" } });
+			});
 
 		// the salt is saved in the password refer to bcrypt docs
-		const same_password = await bcrypt.compare(password, user.user_data.hash);
+		const same_password = await bcrypt.compare(password, user.user_data.hash || "");
 		if (!same_password) {
 			throw FieldErrors({ password: { message: req.t("auth:login.INVALID_PASSWORD"), code: "INVALID_PASSWORD" } });
 		}

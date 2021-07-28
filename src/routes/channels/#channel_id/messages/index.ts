@@ -31,7 +31,6 @@ export function isTextChannel(type: ChannelType): boolean {
 router.get("/", async (req: Request, res: Response) => {
 	const channel_id = req.params.channel_id;
 	const channel = await ChannelModel.findOne({ id: channel_id }, { guild_id: true, type: true, permission_overwrites: true }).exec();
-	if (!channel) throw new HTTPError("Channel not found", 404);
 
 	isTextChannel(channel.type);
 
@@ -127,7 +126,7 @@ router.post("/", messageUpload.single("file"), async (req: Request, res: Respons
 
 	const embeds = [];
 	if (body.embed) embeds.push(body.embed);
-	const data = await sendMessage({ ...body, type: 0, pinned: false, author_id: req.user_id, embeds, channel_id, attachments });
+	const data = await sendMessage({ ...body, type: 0, pinned: false, author_id: req.user_id, embeds, channel_id, attachments, edited_timestamp: null });
 
 	return res.send(data);
 });
